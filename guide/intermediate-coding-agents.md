@@ -460,9 +460,12 @@ happens.** The model is not consulted.
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/guard.py" }
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"
+          }
         ]
       }
     ]
@@ -491,18 +494,26 @@ if "git push" in command:
 sys.exit(0)
 ```
 
-The decision is the **JSON on stdout**, not the exit code. `permissionDecision:
-"deny"` blocks the call, and `permissionDecisionReason` is what the agent is actually
-told — which is what lets it stop and ask rather than guess.
+There are two supported routes and you pick one per hook: **exit 0 and print JSON**,
+as above, or **exit 2 with the reason on stderr** — on a `PreToolUse`, your stderr
+text *is* the denial reason the agent is given. What matters is not which route you
+take but **whether you wrote a reason at all**.
 
-Exit codes still matter, and they are not what a Unix habit expects: **0** means no
-decision, **2** blocks regardless of what you printed, and **1** is a *non-blocking*
-error — the action proceeds anyway. So a guard that crashes, or that returns 1 to
-mean "no", lets the command straight through.
+Exit codes are not what a Unix habit expects: **0** means no decision, **2** blocks
+regardless of what you printed, and **1** — without valid JSON on stdout — is a
+*non-blocking* error, so the action proceeds anyway. A guard that crashes, or that
+returns 1 to mean "no", lets the command straight through.
 
 The other thing people get wrong is writing the reason for a log rather than for the
-agent. "Blocked." makes it try variations until it gives up. "Pushing is a human
-decision. Ask, do not push." makes it stop and ask.
+agent. Nothing at all makes it try variations blindly. "Blocked." makes it try a
+variation, get blocked, and loop. "Pushing is a human decision. Ask, do not push."
+makes it stop and ask.
+
+Two details decide whether a guard holds at all: match `Bash|PowerShell`, not `Bash`
+alone, because PowerShell is a separate tool and a Windows command sails straight past
+a Bash-only matcher; and write the script path as
+`${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py`, because a relative path resolves
+against wherever Claude happens to be when the hook fires.
 
 Which rules deserve a hook? One test:
 

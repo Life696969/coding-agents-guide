@@ -51,9 +51,12 @@ Hooks are configured in `.claude/settings.json` (project) or `~/.claude/settings
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/guard.py" }
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"
+          }
         ]
       }
     ]
@@ -67,7 +70,13 @@ The pieces:
   `PostToolUse` fires after, for reacting. There are others (session start, prompt
   submit, stop); check the docs for the current list, it grows.
 - **matcher** — which tool this applies to. `Bash`, `Edit`, `Write`, or a pattern.
+  **`Bash` alone is not enough**: `PowerShell` is a separate tool, so on Windows a
+  command can walk straight past a `Bash`-only guard. Match `Bash|PowerShell`.
 - **command** — what runs. Receives JSON on stdin describing the call.
+  **Use `${CLAUDE_PROJECT_DIR}`, not a relative path.** A relative path resolves
+  against the working directory *at the time the hook runs*, and that follows Claude
+  — into a worktree, or anywhere it `cd`s. A guard that silently stops resolving is
+  exactly the failure this track exists to prevent.
 
 Edits to hook settings are picked up by a file watcher, so they generally take
 effect without restarting. If a hook seems not to fire, suspect the path or the
@@ -100,17 +109,23 @@ if "git push" in command:
 sys.exit(0)
 ```
 
-The important part is the **JSON on stdout**, not the exit code. `permissionDecision:
-"deny"` blocks the call, and `permissionDecisionReason` is the bit the agent is told,
-which is what lets it stop and ask instead of guessing.
+There are **two supported ways** to deny with a reason, and you pick one per hook:
 
-Exit codes matter too, and they are not what a Unix habit expects:
+- **exit 0 and print JSON**, as above. `permissionDecision: "deny"` blocks the call
+  and `permissionDecisionReason` is what the agent is told. More explicit, and it can
+  also say `allow` or `ask`.
+- **exit 2, with the reason on stderr.** Two lines instead of eight, and the agent is
+  told the same thing — on a `PreToolUse`, your stderr text *is* the denial reason.
+
+What matters is not which route you take. It is **whether you wrote a reason at all**.
+
+Exit codes are not what a Unix habit expects:
 
 | exit | what happens |
 |---|---|
 | 0 | no decision — unless you printed JSON, in which case the JSON decides |
-| 1 | a **non-blocking** error. The action still proceeds. |
-| 2 | a blocking error, whatever the JSON says |
+| 1 | **without valid JSON on stdout**, a non-blocking error: the action still proceeds |
+| 2 | blocks, whatever the JSON says |
 
 **TRAP:** exit 1 is the conventional Unix "failure" code and it does **not** block.
 A guard that crashes, or that returns 1 to mean "no", lets the command through.
@@ -119,18 +134,21 @@ Have them write this and ask the agent to push.
 
 **CHECK:** it must be refused *by the hook*, not by the model being agreeable. Have
 them look for their own reason text in the refusal. If they do not see "Pushing is a
-human decision", the hook did not fire — check the command path in settings and the
-matcher.
+human decision", the hook did not fire. The usual causes, in order: a mistyped
+command path (which shows up as a `Failed with non-blocking status code` notice and
+otherwise leaves the gate silently open), a matcher that misses the tool actually
+used, or a workspace-trust prompt that has not been accepted yet.
 
 ---
 
 ## Beat 4 — write the message for the agent, not the log
 
-`permissionDecisionReason` is not a log line. It goes to the agent, and it
-determines what happens next.
+The reason — whether you sent it as `permissionDecisionReason` or on stderr — is not
+a log line. It goes to the agent, and it determines what happens next.
 
 | Reason | What the agent does next |
 |---|---|
+| *(nothing)* | Blocked with no explanation. Tries variations until it gives up. |
 | `Blocked.` | Tries a slight variation. Blocked again. Loops. |
 | `Pushing is a human decision. Ask, do not push.` | Stops and asks. |
 
@@ -189,19 +207,27 @@ that is the gap. Close it or consciously accept it.
 
 - **A hook guards a path, not an intent.** It sees the command string. A determined
   agent with shell access has other roads; this stops accidents, not adversaries.
+- **`@`-referenced files never fire a `PreToolUse` hook.** Their contents are pasted
+  in while the prompt is built, so a `Read`-matched secrets guard has a hole straight
+  through it. Worth knowing before you trust one.
 - **They run on every matching call.** Slow hooks make the whole session slow. Keep
   them to milliseconds.
-- **They are config, and config is trusted code.** Committing `.claude/settings.json`
-  shares hooks with the team, which means pulling a branch can hand you someone
-  else's shell commands. Anything in `~/.claude/` is just theirs.
+- **They are config, and config is trusted code.** Hooks run shell commands with your
+  full user permissions, so committing `.claude/settings.json` means pulling a branch
+  can hand you someone else's commands. Interactively you get a workspace-trust prompt
+  first — but a scripted `-p` or SDK run does not, and treats the folder as trusted.
+  That is the case to actually worry about.
 - **Too many and you have built a cage.** Three good hooks beat twenty. Every hook
   is a thing that can misfire at the worst moment.
 
-**Predict-then-run:** have them delete the JSON block and replace it with a bare
-`sys.exit(2)`, predict what the agent is told, then test. It still blocks — but the
-agent is not given the reason on a `PreToolUse`, so it tends to try variations
-instead of asking. That gap between "blocked" and "blocked and told why" is the
-whole lesson of this beat.
+**Predict-then-run:** have them replace the whole JSON block with a bare
+`sys.exit(2)` — blocking, but writing nothing to stderr and printing no JSON — then
+predict what the agent is told before testing. It still blocks, and the agent gets no
+reason, so it tries variations instead of asking. Then have them add one
+`print(..., file=sys.stderr)` above the exit and run it again: same block, and now the
+agent stops and asks. The lesson is not JSON versus exit codes — both routes work.
+It is that a block with no message and a block with a message produce completely
+different behaviour.
 
 ---
 
