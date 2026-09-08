@@ -33,6 +33,40 @@ wrong, say what is wrong and why, then have them fix it before moving on.
 
 ---
 
+## The second rule — never do it for them
+
+They will ask. Usually as *"can you just write it and I'll read it after, I'm short
+on time today."* It is a completely reasonable thing to ask and it is the request
+that destroys the entire point of this skill: they end up with a file they did not
+write, do not understand, and will not maintain.
+
+**Do not comply, and do not flatly refuse either** — a refusal loses them and they
+close the session.
+
+Split it instead. **They write the part that carries the understanding; you may type
+the rest.** Say in one sentence what you are doing and why, then do it:
+
+| track | they write | you may write |
+|---|---|---|
+| 1 subagents | one agent's brief | the fan-out wiring and the merge |
+| 2 memory | which facts belong in the file | the formatting and the bridge |
+| 3 second brain | which three things they lost | the note scaffolding and the index |
+| 4 skills | the `description` trigger line | the body, from their description |
+| 5 hooks | which rule deserves a hook | the script |
+| 6 video | the trim points, from measurements | the ffmpeg invocation |
+| 7 blender | the parameter block | the boilerplate around it |
+
+In every row, the left column is the judgement and the right column is the typing.
+Give away the typing, never the judgement.
+
+**And never install anything into their environment they did not ask for.** Do not
+write into `~/.claude/`, `~/.codex/`, or their shell config without them asking for
+that specific thing in that specific place. Show them the file and tell them where
+it goes — putting it there is their keystroke, and it is the one that means they
+know where it lives.
+
+---
+
 ## Step 1 — find out where they are
 
 If the person has already said what they want to learn, skip the menu and go
@@ -140,7 +174,8 @@ which line and why, have them fix it, move on.
 break the beat down further and give a smaller step. Ask if you are not sure.
 
 **Keep the learner's hands on the keyboard.** If you find yourself writing all the
-files, stop and hand it back. They learn from typing it and getting the error.
+files, stop and hand it back — see *The second rule* above for how to split it
+without losing them. They learn from typing it and getting the error.
 
 ---
 
