@@ -116,8 +116,8 @@ Have them write theirs now, in one pass, then cut it by a third.
 
 ## Beat 5 — install and fire it
 
-Put the folder in `~/.claude/skills/<name>/`, then **start a new session** — skills
-are picked up at session start.
+Put the folder in `~/.claude/skills/<name>/`. Claude Code watches that directory
+and picks the skill up **in the current session, no restart needed**.
 
 Then have them trigger it *without naming it*, using one of their three natural
 phrasings from Beat 3.

@@ -13,8 +13,10 @@ the window.
 That ceiling is not the model's. It is an information problem, and it has three
 fixes. This guide is those three.
 
-**Verified on 8 September 2026, Windows 11, Claude Code 2.1.202.** Where a version
-number appears it is because the behaviour was different before it.
+**Verified on 8 September 2026, Windows 11, Claude Code 2.1.202** — with every claim
+about hooks, memory, subagents and skills checked against the official documentation
+on that date rather than written from memory. Behaviour changes between versions: if
+what you see disagrees with this guide, trust what you see.
 
 ---
 
@@ -155,6 +157,10 @@ on their first morning.
 
 ## What actually breaks at scale
 
+- **There is a hard ceiling at twenty.** With twenty subagents already running,
+  spawning another fails. `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` raises it, but
+  twenty concurrent is the default wall — design a big fan-out in waves, not as one
+  unlimited spray.
 - **Going wider is cheap. Going deeper is not.** Twenty agents reading three files
   each is fine. Twenty reading the whole repo is slow, expensive, and returns the
   same finding twenty times.
@@ -241,9 +247,16 @@ importing.
 |---|---|---|
 | `~/.claude/CLAUDE.md` | every project you open | how *you* like to work |
 | `<repo>/CLAUDE.md` | this project | what this project is |
-| `<repo>/<subdir>/CLAUDE.md` | that subtree only | rules local to that area |
+| `<repo>/<subdir>/CLAUDE.md` | loaded when Claude reads files there | rules local to that area |
 
-More specific wins on conflict; the general ones still apply everywhere else.
+These do **not** override each other. They are all concatenated into context,
+broadest first — so there is no precedence rule to exploit, and two files that
+genuinely contradict each other get resolved arbitrarily. A contradiction is a bug to
+delete, not a puzzle to solve.
+
+For instructions that should only apply to part of a repo, `.claude/rules/` with a
+`paths:` frontmatter glob is the better tool: those load only when Claude touches a
+matching file, so they cost no context the rest of the time.
 
 The mistake to avoid is putting project facts in the user-level file. They follow
 you into every unrelated repo and quietly make the agent worse in all of them.
@@ -282,6 +295,19 @@ And prune. A wrong memory is worse than no memory, because the agent trusts it.
 ---
 
 # Part 3 — A second brain
+
+## First, use what is already there
+
+Claude Code ships an **auto memory**: it writes its own typed notes into a
+per-project memory directory and keeps a `MEMORY.md` index that loads at the start of
+every session. If all you want is "remember my corrections", that is built already —
+turn it on and skip to Part 4.
+
+What follows is worth building anyway, for two reasons. The built-in memory is **per
+repository and machine-local**; a second brain is one body of knowledge that follows
+you across every project and syncs in git. And building the index yourself is what
+teaches you why retrieval works — which is what lets you fix the built-in one on the
+day it starts pulling the wrong note.
 
 ## The difference from Part 2
 
@@ -408,6 +434,9 @@ belongs in a skill rather than in your memory file.
 ~/.codex/skills/<name>/               (Codex)
 ```
 
+Claude Code watches those directories, so a new skill is picked up in the current
+session without a restart.
+
 The `description` is the entire trigger. If a skill never fires on its own, the
 description is the thing to fix, and the test is simple: **if you only read that
 line, would you know whether to open the skill?**
@@ -449,18 +478,31 @@ payload = json.load(sys.stdin)
 command = payload.get("tool_input", {}).get("command", "")
 
 if "git push" in command:
-    print("Blocked: pushing is a human decision. Ask, do not push.", file=sys.stderr)
-    sys.exit(2)
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason":
+                "Pushing is a human decision. Ask, do not push.",
+        }
+    }))
+    sys.exit(0)
 
 sys.exit(0)
 ```
 
-Exit 2 blocks and shows stderr to the agent. Exit 0 allows.
+The decision is the **JSON on stdout**, not the exit code. `permissionDecision:
+"deny"` blocks the call, and `permissionDecisionReason` is what the agent is actually
+told — which is what lets it stop and ask rather than guess.
 
-Two things people get wrong. **Hooks load at session start** — editing settings
-mid-session does nothing until you restart. And **the stderr message is written for
-the agent, not for a log**: "Blocked." makes it try variations until it gives up;
-"Blocked: pushing is a human decision. Ask, do not push." makes it stop and ask.
+Exit codes still matter, and they are not what a Unix habit expects: **0** means no
+decision, **2** blocks regardless of what you printed, and **1** is a *non-blocking*
+error — the action proceeds anyway. So a guard that crashes, or that returns 1 to
+mean "no", lets the command straight through.
+
+The other thing people get wrong is writing the reason for a log rather than for the
+agent. "Blocked." makes it try variations until it gives up. "Pushing is a human
+decision. Ask, do not push." makes it stop and ask.
 
 Which rules deserve a hook? One test:
 

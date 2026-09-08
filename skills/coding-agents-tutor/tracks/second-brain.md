@@ -8,6 +8,20 @@ survives sessions and works across every project they open.
 
 ---
 
+> **Say this before you start.** Claude Code ships an *auto memory* that already does
+> part of this: it writes its own typed notes into a per-project memory directory and
+> keeps a `MEMORY.md` index that loads at the start of every session. If all they want
+> is "remember my corrections", that is built already and they should just turn it on.
+>
+> This track is still worth doing, for two reasons. The built-in memory is **per
+> repository and machine-local**; a second brain is one body of knowledge that follows
+> them across every project and syncs in git. And building the index by hand is what
+> teaches them *why* retrieval works — which is what lets them fix the built-in one on
+> the day it starts pulling the wrong note.
+>
+> Teaching someone to hand-build a thing their tool already does, without mentioning
+> that it already does it, is how a guide loses their trust.
+
 ## What they must understand by the end
 
 Track 2 made the agent remember **a project**. This makes it remember **them**.

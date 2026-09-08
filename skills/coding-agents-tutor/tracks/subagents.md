@@ -169,6 +169,10 @@ brief for that dimension is wrong — fix that prompt, not the merge.
 
 Once six works, the honest picture:
 
+- **There is a hard ceiling at 20.** With twenty subagents already running, spawning
+  another fails outright. `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` raises it, but twenty
+  concurrent is the default wall — so design a big fan-out in waves rather than
+  assuming unlimited width.
 - **Going wider is cheap; going deeper is not.** Twenty agents each reading three
   files is fine. Twenty agents each reading the whole repo will be slow and
   expensive, and most of them will return the same finding.

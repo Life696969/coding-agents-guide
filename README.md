@@ -41,8 +41,8 @@ cp -r coding-agents-guide/skills/coding-agents-tutor ~/.codex/skills/
 
 On Windows, copy the folder `skills\coding-agents-tutor` into `%USERPROFILE%\.claude\skills\`.
 
-**Then start a new session** — skills are picked up when a session starts, not while
-one is running. This trips up almost everyone the first time.
+Claude Code watches the skills directory, so it picks the new skill up **without a
+restart**. (Codex may differ — if it does not appear, start a new session.)
 
 Now just say:
 
@@ -104,8 +104,9 @@ So the work is not better prompting.
 ## Verified
 
 Everything was checked on **8 September 2026**, on Windows 11, with **Claude Code
-2.1.202** and **ffmpeg 8.1**. Where a version number appears in the text it is
-because the behaviour was different before it.
+2.1.202** and **ffmpeg 8.1**. Every claim about hooks, memory, subagents and skills
+was checked against the official documentation on that date rather than written from
+memory.
 
 Tracks 6 and 7 need tools that are not part of any agent — ffmpeg and Blender — and
 each track checks for them before it starts rather than four beats in.

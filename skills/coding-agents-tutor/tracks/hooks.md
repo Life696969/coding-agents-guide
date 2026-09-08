@@ -69,8 +69,9 @@ The pieces:
 - **matcher** — which tool this applies to. `Bash`, `Edit`, `Write`, or a pattern.
 - **command** — what runs. Receives JSON on stdin describing the call.
 
-**TRAP:** hooks are read at session start. Editing settings mid-session does nothing
-until they restart. People lose twenty minutes to this.
+Edits to hook settings are picked up by a file watcher, so they generally take
+effect without restarting. If a hook seems not to fire, suspect the path or the
+matcher before you suspect the reload.
 
 ---
 
@@ -86,36 +87,52 @@ payload = json.load(sys.stdin)
 command = payload.get("tool_input", {}).get("command", "")
 
 if "git push" in command:
-    print("Blocked: pushing is a human decision. Ask, do not push.", file=sys.stderr)
-    sys.exit(2)
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason":
+                "Pushing is a human decision. Ask, do not push.",
+        }
+    }))
+    sys.exit(0)
 
 sys.exit(0)
 ```
 
-Two things do all the work:
+The important part is the **JSON on stdout**, not the exit code. `permissionDecision:
+"deny"` blocks the call, and `permissionDecisionReason` is the bit the agent is told,
+which is what lets it stop and ask instead of guessing.
 
-- **exit 2 blocks** the tool call, and whatever went to stderr is shown to the agent
-  so it knows *why* and can adapt.
-- **exit 0 allows** it.
+Exit codes matter too, and they are not what a Unix habit expects:
 
-Have them write this, restart the session, and ask the agent to push.
+| exit | what happens |
+|---|---|
+| 0 | no decision — unless you printed JSON, in which case the JSON decides |
+| 1 | a **non-blocking** error. The action still proceeds. |
+| 2 | a blocking error, whatever the JSON says |
+
+**TRAP:** exit 1 is the conventional Unix "failure" code and it does **not** block.
+A guard that crashes, or that returns 1 to mean "no", lets the command through.
+
+Have them write this and ask the agent to push.
 
 **CHECK:** it must be refused *by the hook*, not by the model being agreeable. Have
-them confirm by looking for their own message text in the refusal. If they do not
-see "Blocked: pushing is a human decision", the hook did not fire — check the path
-in settings is relative to where the agent runs, and that they restarted.
+them look for their own reason text in the refusal. If they do not see "Pushing is a
+human decision", the hook did not fire — check the command path in settings and the
+matcher.
 
 ---
 
 ## Beat 4 — write the message for the agent, not the log
 
-The stderr text is not a log line. It goes to the agent, and it determines what
-happens next.
+`permissionDecisionReason` is not a log line. It goes to the agent, and it
+determines what happens next.
 
-| Message | What the agent does next |
+| Reason | What the agent does next |
 |---|---|
 | `Blocked.` | Tries a slight variation. Blocked again. Loops. |
-| `Blocked: pushing is a human decision. Ask, do not push.` | Stops and asks. |
+| `Pushing is a human decision. Ask, do not push.` | Stops and asks. |
 
 Have them make theirs say **what was blocked, why, and what to do instead.** This is
 the single highest-leverage line in the whole hook.
@@ -174,14 +191,17 @@ that is the gap. Close it or consciously accept it.
   agent with shell access has other roads; this stops accidents, not adversaries.
 - **They run on every matching call.** Slow hooks make the whole session slow. Keep
   them to milliseconds.
-- **They are machine-local config.** Committing `.claude/settings.json` shares them
-  with the team; anything in `~/.claude/` is just theirs.
+- **They are config, and config is trusted code.** Committing `.claude/settings.json`
+  shares hooks with the team, which means pulling a branch can hand you someone
+  else's shell commands. Anything in `~/.claude/` is just theirs.
 - **Too many and you have built a cage.** Three good hooks beat twenty. Every hook
   is a thing that can misfire at the worst moment.
 
-**Predict-then-run:** have them change `sys.exit(2)` to `sys.exit(1)`, predict
-whether the push is blocked, then test. Exit 1 is an *error*, not a block — the
-difference surprises people and is worth feeling once.
+**Predict-then-run:** have them delete the JSON block and replace it with a bare
+`sys.exit(2)`, predict what the agent is told, then test. It still blocks — but the
+agent is not given the reason on a `PreToolUse`, so it tends to try variations
+instead of asking. That gap between "blocked" and "blocked and told why" is the
+whole lesson of this beat.
 
 ---
 

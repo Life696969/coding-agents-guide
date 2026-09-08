@@ -103,12 +103,20 @@ There is more than one place memory lives:
 |---|---|---|
 | `~/.claude/CLAUDE.md` | every project you open | how *you* like to work |
 | `<repo>/CLAUDE.md` | this project | what this project is |
-| `<repo>/<subdir>/CLAUDE.md` | that subtree | rules that only apply in there |
+| `<repo>/<subdir>/CLAUDE.md` | loaded when Claude reads files there | rules local to that area |
 
-More specific wins where they conflict, and the general ones still apply where they
-do not. Have them put one genuinely personal preference in the user-level file —
-something true across all their projects, like "explain before you refactor" — and
-confirm it shows up in a different repo.
+**They do not override each other — they are all concatenated into context**, broadest
+first. So there is no "more specific wins" rule to lean on: if two files genuinely
+contradict, the agent picks one, and which one is not something you can predict.
+Treat a contradiction as a bug to delete, not a precedence puzzle to solve.
+
+For rules that should only apply to part of a repo, the cleaner tool is
+`.claude/rules/` with a `paths:` frontmatter glob — those load only when Claude
+touches a matching file, so they cost nothing the rest of the time.
+
+Have them put one genuinely personal preference in the user-level file — something
+true across all their projects, like "explain before you refactor" — and confirm it
+shows up in a different repo.
 
 **TRAP:** putting project facts in the user-level file. It follows them into every
 unrelated repo and quietly makes the agent worse everywhere else.
