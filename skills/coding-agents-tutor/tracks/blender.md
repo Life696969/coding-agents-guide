@@ -173,10 +173,10 @@ Measure-Command { blender --background --python scene.py | Out-Default }
 Then 512 samples. It will be slower — but well short of eight times, and how far short
 depends entirely on the scene. Cycles has **adaptive sampling on by default**, so
 `samples` is a *ceiling*, not a count: easy pixels converge and stop early. Two other
-things compress the ratio — denoising is on by default, and both timings include
-several seconds of fixed process startup, Python init and file write. Measuring it for
-their own scene is the point; putting a number on it in advance is the habit this beat
-exists to break, so do not give them one.
+things compress the ratio — denoising is on by default, and a fixed cost for process
+startup, Python init and the file write sits inside both numbers regardless of
+samples. Measuring it for their own scene is the point; putting a number on it in
+advance is the habit this beat exists to break, so do not give them one.
 
 **The working rule:** iterate at 32–64 samples and small resolution, raise it only
 for the final. An agent left to its own devices will happily queue a 1024-sample 4K
@@ -188,9 +188,17 @@ a rasteriser: it handles glass, caustics and indirect light differently, so a pr
 can look wrong in ways the final will not, and vice versa. Use it to check
 *composition*, not lighting.
 
-The engine string is version-dependent and it has never been plain `"EEVEE"`: it is
-`"BLENDER_EEVEE"` on Blender 5.0+ and `"BLENDER_EEVEE_NEXT"` on 4.2–4.5, which includes
-the current 4.5 LTS. Check `bpy.app.version` before hard-coding it.
+The engine string is version-dependent and it has never been plain `"EEVEE"`:
+
+| Blender | `scene.render.engine` |
+|---|---|
+| 2.80 – 4.1 | `"BLENDER_EEVEE"` |
+| 4.2 – 4.5 | `"BLENDER_EEVEE_NEXT"` |
+| 5.0+ | `"BLENDER_EEVEE"` again |
+
+So the two maintained LTS lines disagree: 5.2 LTS wants `"BLENDER_EEVEE"`, 4.5 LTS
+wants `"BLENDER_EEVEE_NEXT"`, and the wrong one is an enum `TypeError`, not a silent
+fallback. Check `bpy.app.version` rather than hard-coding it.
 
 ---
 

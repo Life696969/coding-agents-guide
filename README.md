@@ -34,10 +34,11 @@ mkdir -p ~/.claude/skills
 cp -r coding-agents-guide/skills/coding-agents-tutor ~/.claude/skills/
 ```
 
-The `mkdir` is not optional. Without it `cp` exits 0 and quietly makes
-`~/.claude/skills` *itself* the skill folder — you get `~/.claude/skills/SKILL.md`
-instead of `~/.claude/skills/coding-agents-tutor/SKILL.md`, and the skill never loads,
-with no error.
+The `mkdir` is not optional. If `~/.claude` exists but `~/.claude/skills` does not —
+the normal state before your first skill — `cp` exits 0 and quietly makes
+`~/.claude/skills` *itself* the skill folder. You get `~/.claude/skills/SKILL.md`
+instead of `~/.claude/skills/coding-agents-tutor/SKILL.md`, the skill never loads, and
+nothing tells you.
 
 **Codex**
 
@@ -46,7 +47,9 @@ mkdir -p ~/.agents/skills
 cp -r coding-agents-guide/skills/coding-agents-tutor ~/.agents/skills/
 ```
 
-On Windows, copy the folder `skills\coding-agents-tutor` into `%USERPROFILE%\.claude\skills\`.
+On Windows, copy the folder `skills\coding-agents-tutor` into
+`%USERPROFILE%\.claude\skills\` for Claude Code, or `%USERPROFILE%\.agents\skills\`
+for Codex. Create the folder first if it is not there.
 
 Claude Code watches the skills directory, so it normally picks the new skill up
 **without a restart** — *unless `~/.claude/skills/` did not exist when your session
@@ -112,10 +115,15 @@ So the work is not better prompting.
 
 ## Verified
 
-Everything was checked on **8 September 2026**, on Windows 11, with **Claude Code
-2.1.202** and **ffmpeg 8.1**. Every claim about hooks, memory, subagents and skills
-was checked against the official documentation on that date rather than written from
-memory.
+Checked on **8 September 2026**, Windows 11, **ffmpeg 8.1**. The ffmpeg and shell
+commands were verified by running them. The agent behaviour was verified against the
+official docs, which describe the current release — a few claims carry a version note
+because they changed recently, and the machine this was written on runs Claude Code
+2.1.202.
+
+**It will go stale.** These tools ship weekly. When this guide and your session
+disagree, believe your session, and check with `/context`, `/hooks`, `/memory` and
+`/doctor` — they report what actually loaded for you.
 
 Tracks 6 and 7 need tools that are not part of any agent — ffmpeg and Blender — and
 each track checks for them before it starts rather than four beats in.

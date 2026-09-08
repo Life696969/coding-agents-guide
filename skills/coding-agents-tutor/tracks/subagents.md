@@ -19,10 +19,12 @@ whatever else it reads off the disk itself.
 Two caveats that matter more than they look, and that most write-ups skip:
 
 - **A *fork* is the exception.** A fork inherits the whole conversation. Fork *mode*
-  is on by default in an interactive session — that is permission for Claude to
-  request one, not the default type. An untyped "spawn a subagent" gets the
-  general-purpose agent, with a fresh context; you get a fork when Claude asks for
-  one or you run `/subtask`.
+  is permission for Claude to request one, not the default type: when Claude spawns a
+  subagent **without requesting a type** it gets the general-purpose agent, with a
+  fresh context. But Claude can request the `fork` type, and does so freely once fork
+  mode is on — which it is by default in interactive sessions **from Claude Code
+  v2.1.232**. On older builds it is off unless you set `CLAUDE_CODE_FORK_SUBAGENT=1`.
+  You can also start one yourself: `/subtask` on v2.1.212+, `/fork` on v2.1.161–211.
 - **The built-in Explore and Plan agents skip `CLAUDE.md` and git status entirely**,
   and there is no setting to change that.
 

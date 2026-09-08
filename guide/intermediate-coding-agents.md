@@ -13,10 +13,17 @@ the window.
 That ceiling is not the model's. It is an information problem, and it has three
 fixes. This guide is those three.
 
-**Verified on 8 September 2026, Windows 11, Claude Code 2.1.202** — with every claim
-about hooks, memory, subagents and skills checked against the official documentation
-on that date rather than written from memory. Behaviour changes between versions: if
-what you see disagrees with this guide, trust what you see.
+**Checked on 8 September 2026** against the official Claude Code documentation, on
+Windows 11 with ffmpeg 8.1. The ffmpeg and shell behaviour here was verified by running
+it; the agent behaviour was verified against the docs, which describe the current
+release — so a few things carry a version note, because they changed recently and the
+machine this was written on runs 2.1.202.
+
+**This guide will go stale, and that is not a defect you can edit away.** These tools
+ship changes weekly. If what you see disagrees with what you read here, trust what you
+see, and check the source: `code.claude.com/docs`, `agents.md`, and `/context`,
+`/hooks`, `/memory` and `/doctor` inside a session, which report what actually loaded
+on *your* machine rather than what a document claims.
 
 ---
 
@@ -481,7 +488,8 @@ happens.** The model is not consulted.
         "hooks": [
           {
             "type": "command",
-            "command": "python ${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]
           }
         ]
       }
@@ -527,11 +535,12 @@ agent. Nothing at all makes it try variations blindly. "Blocked." makes it try a
 variation, get blocked, and loop. "Pushing is a human decision. Ask, do not push."
 makes it stop and ask.
 
-Two details decide whether a guard holds at all: match `Bash|PowerShell`, not `Bash`
+Two details decide whether a guard holds at all. Match `Bash|PowerShell`, not `Bash`
 alone, because PowerShell is a separate tool and a Windows command sails straight past
-a Bash-only matcher; and write the script path as
-`${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py`, because a relative path resolves
-against wherever Claude happens to be when the hook fires.
+a Bash-only matcher. And put the script path in `args` rather than inside `command`:
+a single string is shell-tokenised, so a project path containing a space splits in two
+and the hook never starts — while `${CLAUDE_PROJECT_DIR}` in an `args` element needs no
+quoting and survives Claude changing directory.
 
 Which rules deserve a hook? One test:
 

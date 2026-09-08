@@ -23,10 +23,14 @@ survives sessions and works across every project they open.
 > though only when `CLAUDE_CONFIG_DIR` is set alongside it — but a folder of markdown
 > you own is portable across tools, machines and years, which none of that gives you.
 >
-> Be careful not to oversell the gap. Auto memory's `feedback` and `project` types
-> cover corrections, preferences and non-obvious decisions — most of what you are about
-> to write down. It skips what it can *derive from the codebase*. So this is a
-> portability-and-ownership argument, not a "the built-in can't do it" argument.
+> Be careful not to oversell the gap in either direction. Auto memory's `user`,
+> `feedback` and `project` types already cover preferences, corrections and decisions
+> that are not derivable from the code — a good deal of what you are about to write
+> down. But it explicitly skips *"anything it can derive from the codebase, such as
+> architecture, file paths, or debugging fixes"*, and anything your `CLAUDE.md`
+> already says. So the `gotcha` — the tool quirk that cost you an afternoon — is a
+> real, named gap. Portability is the headline; that gap is the second reason, and it
+> is worth stating precisely rather than either inflating or waving away.
 >
 > And building the index yourself teaches you why retrieval works, which is what lets
 > you fix the built-in one on the day it starts pulling the wrong note.
@@ -89,10 +93,11 @@ yours, not Claude Code's** — auto memory uses `user`, `feedback`, `project` an
 dashboard or tracker). Do not assume they interoperate.
 
 **CHECK:** write the `description` as if it were the only thing anyone reads — because
-when it comes to *choosing* what to open, the index line is genuinely all the agent
-has. The frontmatter is not in context until the file is opened. Keeping the two in
-sync is what makes the index line easy to write. "Redis notes" fails. The one above
-passes.
+when it comes to *choosing* what to open, the index line is all the agent has **in
+context**. The frontmatter is not loaded until the file is opened. (It can still fall
+back on Glob and Grep over filenames and full text, which is slower and less precise —
+see Beat 6.) Keeping the description and the index line in sync is what makes the
+index line easy to write. "Redis notes" fails. The one above passes.
 
 Have them write their three from Beat 1 in this shape.
 
@@ -126,8 +131,10 @@ Imports in a user-scope file load without an approval prompt. One exception: in 
 desktop sessions, a user-scope import resolving outside the session's working directory
 is skipped, so there the import will not fire.
 
-That handles **retrieval**. Beat 4 adds a prose instruction, which handles **capture** —
-when to write a new note. The two do different jobs; you want both.
+That guarantees the index is *present*. Beat 4 adds a prose instruction that tells the
+agent what to do with it and when to write new notes — the import cannot do either, and
+prose alone cannot guarantee the index is loaded. You want both, and they reinforce
+rather than replace each other.
 
 **CHECK:** the index line must make sense to someone who has not read the note. If
 the hook is just the title again, it is not earning its place.
@@ -141,8 +148,8 @@ memory file (`~/.claude/CLAUDE.md`):
 
 ```markdown
 ## Second brain
-Notes live in `~/brain/`. `MEMORY.md` there is the index; read it when a question
-might have been answered before.
+Notes live in `~/brain/`. `MEMORY.md` there is the index and it is already imported into
+your context; consult it when a question might have been answered before.
 
 Write a new note when I decide something non-obvious, state a preference about how
 I want things done, or hit a gotcha that cost more than ten minutes. One fact per
@@ -158,7 +165,8 @@ agent will write to both stores and the learner will see notes appear in
 this exercise — `"autoMemoryEnabled": false` in that project's `.claude/settings.json`,
 or `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` — or tell them to expect the split. And note
 that a `CLAUDE.md` instruction is context, not enforcement: it asks, it does not
-compel, which is why the *index* is imported rather than requested.
+compel — which is why the *index* is imported rather than merely asked for, while the
+judgement about when to write is left to prose.
 
 **TRAP:** it will over-record at first — every trivial thing becomes a note. That is
 fine and it is fixable: tighten the trigger ("cost more than ten minutes"), and
@@ -177,7 +185,7 @@ Three outcomes and what each means:
 | What happened | What to fix |
 |---|---|
 | Found and used it | Nothing. Do it again next week to be sure. |
-| Did not look | The `@` import is missing, mistyped, or wrapped in backticks so it never parsed |
+| Did not look | Most often the import worked and the agent simply chose not to open the note — a memory file asks, it does not compel. Confirm with `/context` under **Memory files** first; if the index is not there, the `@` import is missing, mistyped, or wrapped in backticks so it never parsed |
 | Looked but picked wrong | The `description` hooks are too similar to each other |
 
 **CHECK:** make them run this test with a question they did *not* design the note

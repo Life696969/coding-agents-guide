@@ -97,10 +97,15 @@ ffprobe -v error -select_streams v:0 -count_frames \
 
 **TRAP:** a duration that is not a whole number of frames does **not** give you a
 partial frame — there is no such thing in an H.264 stream. What happens is quieter and
-worse: ffmpeg rounds **up** to the next whole frame and hands you a duration you did
-not ask for. `-t 6.35` at 30fps gives **191 frames, and a stream duration of
-6.366016s** — not 190.5, not 6.35, and not even the arithmetic 191/30, because the mp4
-muxer stores it on a 1/15360 timebase. The frame count looks perfectly fine.
+worse: at 30fps ffmpeg rounds **up** to the next whole frame and hands you a duration
+you did not ask for. `-t 6.35` gives **191 frames and roughly 6.3667s** — not 190.5,
+and not the 6.35 you asked for. Usually it is exactly 191/30; occasionally it lands a
+few ticks under, depending on how the trailing B-frames fall. Do not chase the sixth
+decimal place — the point is that you asked for one duration and got another, and the
+frame count looks perfectly fine either way.
+
+(The round-*up* rule is a 30fps observation. At 60fps the same `-t 6.35` rounds
+*down*, to 380 frames. Measure at your own frame rate rather than trusting a rule.)
 
 At 30fps, pick durations that are multiples of 1/30 and the count works at 30 and 60
 both. `6.40 x 30 = 192` — whole. `6.35 x 30 = 190.5` — not.
@@ -112,9 +117,8 @@ duration**, not the frame count:
 ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 out.mp4
 ```
 
-Asking for 6.35 and being given 6.366016 is the thing to feel. Ten of those in a
-sequence is a sixth of a second of drift you never authorised. (Build the demo by
-trimming a real file — from a `lavfi` source `-t` rounds to nearest, not up.)
+Asking for 6.35 and being given ~6.3667 is the thing to feel. Ten of those in a
+sequence is about a sixth of a second of drift you never authorised.
 
 ---
 
@@ -171,9 +175,11 @@ ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null -
   | grep -E "Input (Integrated|True Peak)"
 ```
 
-**The loudness line pipes to `grep`, which PowerShell does not have** — and this
-track's signature trap is a Windows font path, so say which shell you are in. The two
-`ffprobe` lines run as-is anywhere; only the last needs Git Bash or WSL. In PowerShell:
+**These are written for a bash-like shell**, and this track's signature trap is a
+Windows font path, so say which shell you are in. Two things break in PowerShell: the
+`grep` pipe, which PowerShell does not have, and the `\` line continuations, which it
+does not understand either — put those commands on one line or use a backtick. In
+PowerShell:
 
 ```powershell
 ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null - 2>&1 |
@@ -181,7 +187,7 @@ ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null -
 ```
 
 **This is the beat that separates people who ship from people who re-render all
-night.** An agent will happily report success on a file that is 6.366016s when you
+night.** An agent will happily report success on a file that is ~6.3667s when you
 asked for 6.35 — the frame count looks whole, nothing errors, and the drift only
 shows up once the clips are lined up. Only a check catches it.
 

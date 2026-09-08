@@ -103,11 +103,16 @@ One source of truth in `AGENTS.md`, imported. Have them do this if they use both
 tools; skip if they only use one.
 
 **CHECK:** run `/context` in a fresh session and confirm `CLAUDE.md` appears under
-**Memory files** — that answers "did the file load". It does **not** prove the import
-resolved, because a `CLAUDE.md` with a broken `@AGENTS.md` still loads and still shows
-up. For that, ask the agent to state a convention that exists only in `AGENTS.md`. If
-it cannot, check the import path: it resolves relative to the file containing it, not
-to your working directory.
+**Memory files** — that answers "did the file load", which is not the same as "did the
+import resolve". For the import, ask the agent to state a convention that exists only
+in `AGENTS.md`.
+
+If it cannot, the usual cause is the one nobody suspects: **`@AGENTS.md` inside
+backticks or a fenced code block is not parsed as an import.** Import parsing skips
+code spans and fences, so a tidily formatted bridge silently does nothing. The line
+must sit bare in the file. (Relative import paths resolve against the file containing
+them rather than your working directory — which matters once the two files are in
+different directories, though not for a bridge with both at the repo root.)
 
 ---
 
@@ -135,8 +140,12 @@ context merely because Claude is working somewhere near the glob.
 
 **Codex users:** the hierarchy idea transfers, the filenames do not. Codex reads
 `AGENTS.md` from your Codex home, then from the git root down to your current
-directory, concatenated root-down — and unlike Claude Code, **files closer to your
-directory do override earlier ones**. `.claude/rules/` is Claude Code only.
+directory, concatenated root-down — the same shape as above, with the closer file
+last. The difference is what each tool *promises*: Codex's docs treat the closer file
+as taking precedence, since it lands later in the combined prompt; Claude Code's make
+no such promise and say a contradiction may be resolved arbitrarily. Either way the
+advice holds — delete the contradiction rather than relying on order.
+`.claude/rules/` is Claude Code only.
 
 Have them put one genuinely personal preference in the user-level file — something
 true across all their projects, like "explain before you refactor" — and confirm it
