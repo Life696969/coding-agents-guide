@@ -11,20 +11,22 @@ survives sessions and works across every project they open.
 > **Say this before you start, and be straight about it.** Claude Code already ships an
 > *auto memory*: it writes its own typed notes into `~/.claude/projects/<project>/memory/`
 > and keeps a `MEMORY.md` index that loads at the start of every session (the first
-> 200 lines or 25KB — past that is silently dropped). **It is on by default.** Have them
-> run `/memory` and actually look at what it has been saving. If all they want is
+> 200 lines or 25KB — past that is not loaded, though Claude Code does warn as the file
+> approaches the limit). **It is on by default.** Have them run `/memory`, open the auto
+> memory folder, and actually look at what it has been saving. If all they want is
 > "remember my corrections", they already have it.
 >
-> Two honest reasons to build one anyway:
+> The honest reason to build one anyway is **portability**. The built-in is per
+> repository and machine-local by default: it does not follow you across projects and
+> it does not sync in git. Those defaults can be moved — `autoMemoryDirectory`
+> relocates the store, and `CLAUDE_CODE_PROJECT_DIR_NAME` can make projects share one,
+> though only when `CLAUDE_CONFIG_DIR` is set alongside it — but a folder of markdown
+> you own is portable across tools, machines and years, which none of that gives you.
 >
-> - **It covers a category the built-in refuses.** Auto memory deliberately skips
->   anything derivable from the codebase, *including debugging fixes*. The gotcha that
->   cost you an afternoon is exactly what it will not keep. That is the strongest
->   argument here.
-> - **Defaults and portability.** The built-in is per repository and machine-local. You
->   can move it — `autoMemoryDirectory` relocates the store, and
->   `CLAUDE_CODE_PROJECT_DIR_NAME` can make projects share one — but out of the box it
->   does not follow you across projects or sync in git, and a brain does.
+> Be careful not to oversell the gap. Auto memory's `feedback` and `project` types
+> cover corrections, preferences and non-obvious decisions — most of what you are about
+> to write down. It skips what it can *derive from the codebase*. So this is a
+> portability-and-ownership argument, not a "the built-in can't do it" argument.
 >
 > And building the index yourself teaches you why retrieval works, which is what lets
 > you fix the built-in one on the day it starts pulling the wrong note.
@@ -86,9 +88,11 @@ yours, not Claude Code's** — auto memory uses `user`, `feedback`, `project` an
 `reference`, and its `reference` means something narrower (where to find an external
 dashboard or tracker). Do not assume they interoperate.
 
-**CHECK:** the `description` must be good enough to decide *relevance* on its own,
-because when the agent is choosing what to open it is going on the index line and this
-summary, not on the body. "Redis notes" fails. The one above passes.
+**CHECK:** write the `description` as if it were the only thing anyone reads — because
+when it comes to *choosing* what to open, the index line is genuinely all the agent
+has. The frontmatter is not in context until the file is opened. Keeping the two in
+sync is what makes the index line easy to write. "Redis notes" fails. The one above
+passes.
 
 Have them write their three from Beat 1 in this shape.
 
@@ -112,13 +116,18 @@ open only the notes that matter. **Nothing loads `~/brain/MEMORY.md` on its own*
 make it load: put an `@` import in `~/.claude/CLAUDE.md`, which is expanded into
 context at launch.
 
-```markdown
-@~/brain/MEMORY.md
-```
+Add this line to `~/.claude/CLAUDE.md`, **bare and not inside backticks or a code
+fence** — import parsing skips code spans and fenced blocks, so a tidied-up version in
+backticks silently does nothing:
 
-The alternative — a prose instruction saying "go read the index" — relies on the agent
-choosing to make that Read call, and that is exactly the "Did not look" failure in
-Beat 5. An import removes the choice.
+    @~/brain/MEMORY.md
+
+Imports in a user-scope file load without an approval prompt. One exception: in Cowork
+desktop sessions, a user-scope import resolving outside the session's working directory
+is skipped, so there the import will not fire.
+
+That handles **retrieval**. Beat 4 adds a prose instruction, which handles **capture** —
+when to write a new note. The two do different jobs; you want both.
 
 **CHECK:** the index line must make sense to someone who has not read the note. If
 the hook is just the title again, it is not earning its place.
@@ -146,9 +155,10 @@ Then have them work normally for a bit and watch whether notes appear.
 **TRAP:** auto memory is running at the same time, with an overlapping mandate — the
 agent will write to both stores and the learner will see notes appear in
 `~/.claude/projects/<project>/memory/` that they did not build. Either turn it off for
-this exercise (`autoMemoryEnabled: false`) or tell them to expect the split. And note
+this exercise — `"autoMemoryEnabled": false` in that project's `.claude/settings.json`,
+or `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` — or tell them to expect the split. And note
 that a `CLAUDE.md` instruction is context, not enforcement: it asks, it does not
-compel.
+compel, which is why the *index* is imported rather than requested.
 
 **TRAP:** it will over-record at first — every trivial thing becomes a note. That is
 fine and it is fixable: tighten the trigger ("cost more than ten minutes"), and
@@ -167,7 +177,7 @@ Three outcomes and what each means:
 | What happened | What to fix |
 |---|---|
 | Found and used it | Nothing. Do it again next week to be sure. |
-| Did not look | The instruction in the user memory file is too weak, or the index is not being read |
+| Did not look | The `@` import is missing, mistyped, or wrapped in backticks so it never parsed |
 | Looked but picked wrong | The `description` hooks are too similar to each other |
 
 **CHECK:** make them run this test with a question they did *not* design the note

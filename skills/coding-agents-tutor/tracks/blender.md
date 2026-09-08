@@ -165,25 +165,32 @@ time blender --background --python scene.py
 ```
 
 ```powershell
-# PowerShell, since this track targets Windows
-Measure-Command { blender --background --python scene.py }
+# PowerShell. Out-Default matters: Measure-Command swallows the command's
+# output otherwise, and you would lose every print the script makes.
+Measure-Command { blender --background --python scene.py | Out-Default }
 ```
 
-Then 512 samples. It will be slower — but nowhere near eight times. Cycles has
-**adaptive sampling on by default**, so `samples` is a *ceiling*, not a count: easy
-pixels converge and stop early, and on a simple scene the real ratio is closer to two
-or three. Measuring it for their own scene is the point; guessing it is the habit this
-beat exists to break.
+Then 512 samples. It will be slower — but well short of eight times, and how far short
+depends entirely on the scene. Cycles has **adaptive sampling on by default**, so
+`samples` is a *ceiling*, not a count: easy pixels converge and stop early. Two other
+things compress the ratio — denoising is on by default, and both timings include
+several seconds of fixed process startup, Python init and file write. Measuring it for
+their own scene is the point; putting a number on it in advance is the habit this beat
+exists to break, so do not give them one.
 
 **The working rule:** iterate at 32–64 samples and small resolution, raise it only
 for the final. An agent left to its own devices will happily queue a 1024-sample 4K
 render for a composition test and burn twenty minutes proving the light is in the
 wrong place.
 
-**TRAP:** EEVEE (the engine string is `"BLENDER_EEVEE"`, not `"EEVEE"`) renders in a
-fraction of the time and is right for previews, but it is a rasteriser: it handles
-glass, caustics and indirect light differently, so a preview can look wrong in ways the
-final will not, and vice versa. Use it to check *composition*, not lighting.
+**TRAP:** EEVEE renders in a fraction of the time and is right for previews, but it is
+a rasteriser: it handles glass, caustics and indirect light differently, so a preview
+can look wrong in ways the final will not, and vice versa. Use it to check
+*composition*, not lighting.
+
+The engine string is version-dependent and it has never been plain `"EEVEE"`: it is
+`"BLENDER_EEVEE"` on Blender 5.0+ and `"BLENDER_EEVEE_NEXT"` on 4.2–4.5, which includes
+the current 4.5 LTS. Check `bpy.app.version` before hard-coding it.
 
 ---
 

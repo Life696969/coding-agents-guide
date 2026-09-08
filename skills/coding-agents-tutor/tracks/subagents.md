@@ -18,9 +18,11 @@ whatever else it reads off the disk itself.
 
 Two caveats that matter more than they look, and that most write-ups skip:
 
-- **A *fork* is the exception.** A fork inherits the whole conversation, and in a
-  current interactive Claude Code session fork mode is on by default. So "spawn a
-  subagent" may well give you something that *does* know what you were just doing.
+- **A *fork* is the exception.** A fork inherits the whole conversation. Fork *mode*
+  is on by default in an interactive session — that is permission for Claude to
+  request one, not the default type. An untyped "spawn a subagent" gets the
+  general-purpose agent, with a fresh context; you get a fork when Claude asks for
+  one or you run `/subtask`.
 - **The built-in Explore and Plan agents skip `CLAUDE.md` and git status entirely**,
   and there is no setting to change that.
 
@@ -42,11 +44,10 @@ It will not know the conversation. It may still describe the project accurately 
 from `CLAUDE.md` and the git snapshot it was given — and that is the real lesson:
 **what a subagent knows is what was put in front of it, not what you said.**
 
-**TRAP — check this before running it.** If they just say "spawn a subagent", a
-current interactive session is likely to give them a *fork*, which inherits the
-entire conversation and will answer the question perfectly. That looks like the
-demo failing when it is actually a different feature. Make sure they delegate to a
-named agent.
+**TRAP — worth knowing before you run it.** Fork mode is on by default in an
+interactive session, so Claude *can* answer this with a fork, which inherits the
+conversation and will answer perfectly. That looks like the demo failing when it is
+a different feature. Naming the agent removes the ambiguity.
 
 **Then ask them:** why is that a feature and not a bug?
 
@@ -129,11 +130,12 @@ Have them ask their agent for something shaped like:
 > Each returns at most 5 findings as `file:line — what — why it matters`.
 > Then merge into one list, most severe first.
 
-**CHECK:** ask for all three in **one request**. You do not get a switch for this —
-Claude decides how to batch the delegation, and in a current session subagents run in
-the background anyway, so asking across three separate turns does not reliably
-serialise them either. What one request buys you is that Claude plans the three
-briefs together, which is what makes them comparable.
+**CHECK:** ask for all three in **one request**. Claude decides how to batch the
+delegation, and in an interactive session subagents run in the background, so asking
+across three separate turns does not reliably serialise them either. (There is a
+blunt override — `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` forces the foreground
+everywhere — but you rarely want it.) What one request buys you is that Claude plans
+the three briefs together, which is what makes them comparable.
 
 **CHECK:** are the three outputs in the *same format*? If not, the merge is manual
 work and the fan-out saved them nothing. Fix by putting the output shape in each

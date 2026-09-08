@@ -98,8 +98,9 @@ ffprobe -v error -select_streams v:0 -count_frames \
 **TRAP:** a duration that is not a whole number of frames does **not** give you a
 partial frame — there is no such thing in an H.264 stream. What happens is quieter and
 worse: ffmpeg rounds **up** to the next whole frame and hands you a duration you did
-not ask for. `-t 6.35` at 30fps gives **191 frames and 6.366667s**, not 190.5 and not
-6.35. The frame count looks perfectly fine.
+not ask for. `-t 6.35` at 30fps gives **191 frames, and a stream duration of
+6.366016s** — not 190.5, not 6.35, and not even the arithmetic 191/30, because the mp4
+muxer stores it on a 1/15360 timebase. The frame count looks perfectly fine.
 
 At 30fps, pick durations that are multiples of 1/30 and the count works at 30 and 60
 both. `6.40 x 30 = 192` — whole. `6.35 x 30 = 190.5` — not.
@@ -111,8 +112,9 @@ duration**, not the frame count:
 ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 out.mp4
 ```
 
-Asking for 6.35 and being given 6.366667 is the thing to feel. Ten of those in a
-sequence is a third of a second of drift you never authorised.
+Asking for 6.35 and being given 6.366016 is the thing to feel. Ten of those in a
+sequence is a sixth of a second of drift you never authorised. (Build the demo by
+trimming a real file — from a `lavfi` source `-t` rounds to nearest, not up.)
 
 ---
 
@@ -142,8 +144,9 @@ drop the drive letter entirely, `fontfile='/Windows/Fonts/arialbd.ttf'`.
 
 **And do not reach for the two obvious workarounds.** `font=Arial` (by name) and
 backslash separators (`'C\:\Windows\Fonts\arialbd.ttf'`) both *segfault* ffmpeg on
-Windows rather than erroring cleanly, so a learner debugging a font path can land on a
-hard crash with no message.
+Windows rather than erroring cleanly — exit 139 in Git Bash, `0xC0000005` in PowerShell,
+preceded only by an unhelpful `Fontconfig error`. A learner debugging a font path can
+land on a hard crash with no useful message.
 
 **CHECK:** have them pause on a frame, and check the picture *outside* the text is
 as bright as the source. If the whole lower third got darker, they used a box; go
@@ -168,9 +171,9 @@ ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null -
   | grep -E "Input (Integrated|True Peak)"
 ```
 
-**These three use `grep`, which PowerShell does not have** — and this track's signature
-trap is a Windows font path, so say which shell you are in. Git Bash or WSL runs them
-as written. In PowerShell:
+**The loudness line pipes to `grep`, which PowerShell does not have** — and this
+track's signature trap is a Windows font path, so say which shell you are in. The two
+`ffprobe` lines run as-is anywhere; only the last needs Git Bash or WSL. In PowerShell:
 
 ```powershell
 ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null - 2>&1 |
@@ -178,7 +181,7 @@ ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null -
 ```
 
 **This is the beat that separates people who ship from people who re-render all
-night.** An agent will happily report success on a file that is 6.366667s when you
+night.** An agent will happily report success on a file that is 6.366016s when you
 asked for 6.35 — the frame count looks whole, nothing errors, and the drift only
 shows up once the clips are lined up. Only a check catches it.
 

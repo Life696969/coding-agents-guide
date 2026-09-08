@@ -53,9 +53,11 @@ A subagent does not inherit your conversation. It gets the task message Claude
 composes for it, your `CLAUDE.md` hierarchy, a git status snapshot, any preloaded
 skills — and whatever else it reads off the disk. Not your chat.
 
-Two exceptions worth carrying: a **fork** inherits the whole conversation, and it is
-the default in a current interactive session; and the built-in **Explore and Plan**
-agents skip `CLAUDE.md` and git status entirely, with no setting to change it.
+Two exceptions worth carrying. A **fork** inherits the whole conversation — fork *mode*
+is on by default in an interactive session, which is permission for Claude to request
+one, not the default type; an untyped request still gets a fresh-context agent. And the
+built-in **Explore and Plan** agents skip `CLAUDE.md` and git status entirely, with no
+setting to change it.
 
 People meet this as a bug. They fan out five agents, the answers come back
 inconsistent, and they conclude parallel agents are not ready. The agents were
@@ -307,8 +309,9 @@ And prune. A wrong memory is worse than no memory, because the agent trusts it.
 
 Claude Code ships an **auto memory**: it writes its own typed notes into a
 per-project memory directory and keeps a `MEMORY.md` index that loads at the start of
-every session. If all you want is "remember my corrections", that is built already —
-turn it on and skip to Part 4.
+every session, and **it is on by default**. If all you want is "remember my
+corrections", you already have it — run `/memory`, open the auto memory folder, and
+skip to Part 4.
 
 What follows is worth building anyway, for two reasons. The built-in memory is **per
 repository and machine-local**; a second brain is one body of knowledge that follows
@@ -449,8 +452,7 @@ Claude Code watches those directories, so a new skill is picked up in the curren
 session without a restart — **unless the skills directory did not exist when the
 session started**, which is exactly the first-timer case. Restart once, then trust it.
 
-A skill is not free until used, either: its description sits in context every session,
-and its body stays in context once triggered. Keep both short.
+Keep both the description and the body short.
 
 The `description` is the entire trigger. If a skill never fires on its own, the
 description is the thing to fix, and the test is simple: **if you only read that
@@ -514,10 +516,11 @@ as above, or **exit 2 with the reason on stderr** — on a `PreToolUse`, your st
 text *is* the denial reason the agent is given. What matters is not which route you
 take but **whether you wrote a reason at all**.
 
-Exit codes are not what a Unix habit expects: **0** means no decision, **2** blocks
-regardless of what you printed, and **1** — without valid JSON on stdout — is a
-*non-blocking* error, so the action proceeds anyway. A guard that crashes, or that
-returns 1 to mean "no", lets the command straight through.
+Exit codes are not what a Unix habit expects: **0 on its own** means no decision —
+with valid JSON on stdout the JSON decides; **2** blocks regardless of what you
+printed; and **1**, without valid JSON, is a *non-blocking* error, so the action
+proceeds anyway. A guard that crashes, or that returns 1 to mean "no", lets the command
+straight through.
 
 The other thing people get wrong is writing the reason for a log rather than for the
 agent. Nothing at all makes it try variations blindly. "Blocked." makes it try a

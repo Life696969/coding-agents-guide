@@ -30,8 +30,14 @@ runs.
 
 ```bash
 git clone https://github.com/Life696969/coding-agents-guide.git
+mkdir -p ~/.claude/skills
 cp -r coding-agents-guide/skills/coding-agents-tutor ~/.claude/skills/
 ```
+
+The `mkdir` is not optional. Without it `cp` exits 0 and quietly makes
+`~/.claude/skills` *itself* the skill folder — you get `~/.claude/skills/SKILL.md`
+instead of `~/.claude/skills/coding-agents-tutor/SKILL.md`, and the skill never loads,
+with no error.
 
 **Codex**
 
@@ -42,8 +48,10 @@ cp -r coding-agents-guide/skills/coding-agents-tutor ~/.agents/skills/
 
 On Windows, copy the folder `skills\coding-agents-tutor` into `%USERPROFILE%\.claude\skills\`.
 
-Claude Code watches the skills directory, so it picks the new skill up **without a
-restart**. (Codex may differ — if it does not appear, start a new session.)
+Claude Code watches the skills directory, so it normally picks the new skill up
+**without a restart** — *unless `~/.claude/skills/` did not exist when your session
+started*, which is the usual case the first time. Then it is not watching that
+directory yet and you need one restart. Codex detects changes automatically too.
 
 Now just say:
 

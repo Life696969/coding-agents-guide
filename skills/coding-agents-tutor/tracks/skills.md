@@ -102,10 +102,18 @@ Three related fields worth knowing:
   cleaner fix than keyword-stuffing when a skill is only for one file type.
 - **`disable-model-invocation: true`** — the deliberate "never fire on its own" switch.
 
-**There is a hard cap:** `description` and `when_to_use` together are truncated at
-**1,536 characters** in the listing. And the whole listing has a budget of about 1% of
-the context window — past that, descriptions get dropped, least-used first. If a skill
-that used to fire stops firing, that is a prime suspect, and `/doctor` will tell you.
+**There is a hard cap** — and the numbers are Claude Code's. `description` and
+`when_to_use` together are truncated at **1,536 characters** in the listing, and the
+whole listing has a budget of about 1% of the context window; past that, descriptions
+get dropped least-used first, though every skill *name* is kept. If a skill that used
+to fire stops firing, that is a prime suspect, and `/doctor` will tell you.
+
+**Codex differs on every number.** Its listing budget is about 2% of the context window
+(or 8,000 characters when that is unknown), it has no 1,536-character cap, it has no
+`/doctor`, and when it runs out of room it can **omit whole skills** with a warning
+rather than just shortening descriptions. Its "never fire on its own" switch is
+`allow_implicit_invocation: false` in `agents/openai.yaml`, not
+`disable-model-invocation`.
 
 | | |
 |---|---|

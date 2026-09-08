@@ -55,7 +55,8 @@ Hooks are configured in `.claude/settings.json` (project) or `~/.claude/settings
         "hooks": [
           {
             "type": "command",
-            "command": "python ${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]
           }
         ]
       }
@@ -77,10 +78,15 @@ The pieces:
   against the working directory *at the time the hook runs*, and that follows Claude
   — into a worktree, or anywhere it `cd`s. A guard that silently stops resolving is
   exactly the failure this track exists to prevent.
+- **`args`** — put the script path here rather than inside `command`. With everything
+  in one string it is shell-tokenised, so a project path containing a space (say
+  `C:\Users\Jane Doe\...`) splits in two and the hook never starts. Passing it as an
+  `args` element needs no quoting at all.
 
-Edits to hook settings are picked up by a file watcher, so they generally take
-effect without restarting. If a hook seems not to fire, suspect the path or the
-matcher before you suspect the reload.
+Edits to hook settings are picked up by a file watcher, so they generally take effect
+without restarting. Run `/hooks` to confirm yours appears under the right event. If it
+does not show up after a few seconds, the watcher may have missed the change and a
+session restart forces a reload.
 
 ---
 
@@ -134,10 +140,12 @@ Have them write this and ask the agent to push.
 
 **CHECK:** it must be refused *by the hook*, not by the model being agreeable. Have
 them look for their own reason text in the refusal. If they do not see "Pushing is a
-human decision", the hook did not fire. The usual causes, in order: a mistyped
-command path (which shows up as a `Failed with non-blocking status code` notice and
-otherwise leaves the gate silently open), a matcher that misses the tool actually
-used, or a workspace-trust prompt that has not been accepted yet.
+human decision", the hook did not fire. Check in this order: run `/hooks` and see
+whether it is even registered; then a mistyped command path (which shows up as a
+`Failed with non-blocking status code` notice and otherwise leaves the gate silently
+open); then a matcher that misses the tool actually used; then a workspace-trust prompt
+that has not been accepted. If all four look right, restart the session to force a
+reload.
 
 ---
 

@@ -17,8 +17,8 @@ anything:
 
 - **`CLAUDE.md`** — instructions *you* write. This track is about these.
 - **Auto memory** — notes *Claude* writes itself from your corrections, kept per
-  repository and loaded every session. **It is on by default.** Run `/memory` to see
-  what it has already been saving.
+  repository and loaded every session. **It is on by default.** Run `/memory` and
+  select the auto memory folder to see what it has already been saving.
 
 Once you see memory as "files that get read", every memory problem becomes a file
 problem: what is in it, how long it is, and whether it is still true.
@@ -33,7 +33,9 @@ and ask:
 > "What do you know about this project's conventions?"
 
 Whatever it answers came from files — `CLAUDE.md` if they had one, plus whatever
-auto memory has quietly saved. Have them run `/memory` too, and notice the split:
+auto memory has quietly saved. Have them run `/memory` **and open the auto memory
+folder** (the command lists file locations; it does not print the notes), and notice
+the split:
 some of what they explained last week *was* captured, and the rest is simply gone.
 
 **TRAP:** if you skip the `/memory` step, this beat can backfire — auto memory may
@@ -48,7 +50,7 @@ That number is what this track is worth to them.
 
 ## Beat 2 — the file the agent already looks for
 
-**Claude Code** reads `CLAUDE.md`. **Codex and ~30 other tools** read `AGENTS.md`.
+**Claude Code** reads `CLAUDE.md`. **Codex and 20+ other tools** read `AGENTS.md`.
 Both at the repo root, both plain markdown, no schema, no install.
 
 Have them create one with only these four sections, and nothing else yet:
@@ -101,8 +103,11 @@ One source of truth in `AGENTS.md`, imported. Have them do this if they use both
 tools; skip if they only use one.
 
 **CHECK:** run `/context` in a fresh session and confirm `CLAUDE.md` appears under
-**Memory files**. That is the direct answer to "did it load", and it beats inferring
-it from the agent's behaviour.
+**Memory files** — that answers "did the file load". It does **not** prove the import
+resolved, because a `CLAUDE.md` with a broken `@AGENTS.md` still loads and still shows
+up. For that, ask the agent to state a convention that exists only in `AGENTS.md`. If
+it cannot, check the import path: it resolves relative to the file containing it, not
+to your working directory.
 
 ---
 
@@ -116,19 +121,22 @@ There is more than one place memory lives:
 | `<repo>/CLAUDE.md` | this project | what this project is |
 | `<repo>/<subdir>/CLAUDE.md` | loaded when Claude reads files there | rules local to that area |
 
-**They do not override each other — they are all concatenated into context**, broadest
-first. So there is no "more specific wins" rule to lean on: if two files genuinely
-contradict, the agent picks one, and which one is not something you can predict.
-Treat a contradiction as a bug to delete, not a precedence puzzle to solve.
+**The ones loaded at launch do not override each other — they are concatenated**,
+broadest first. (The subdirectory row is different: those load on demand, when Claude
+reads a file in that directory.) So there is no "more specific wins" rule to lean on:
+if two files genuinely contradict, the agent picks one, and which one is not something
+you can predict. Treat a contradiction as a bug to delete, not a precedence puzzle.
 
 For rules that should only apply to part of a repo, the cleaner tool is
 `.claude/rules/` with a `paths:` frontmatter glob — those load only when Claude
 **reads** a matching file, so they cost nothing the rest of the time. Note the verb:
-a rule scoped to `src/api/**` is *not* in context while Claude is creating a brand
-new file there, which is a trap if you scope rules to an area you are about to build.
+the documented trigger is a read, not any tool use, so do not assume a rule is in
+context merely because Claude is working somewhere near the glob.
 
-**This beat is Claude Code only.** Codex has no `~/.claude/CLAUDE.md` hierarchy and no
-`.claude/rules/`.
+**Codex users:** the hierarchy idea transfers, the filenames do not. Codex reads
+`AGENTS.md` from your Codex home, then from the git root down to your current
+directory, concatenated root-down — and unlike Claude Code, **files closer to your
+directory do override earlier ones**. `.claude/rules/` is Claude Code only.
 
 Have them put one genuinely personal preference in the user-level file — something
 true across all their projects, like "explain before you refactor" — and confirm it
