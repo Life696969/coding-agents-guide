@@ -8,19 +8,26 @@ survives sessions and works across every project they open.
 
 ---
 
-> **Say this before you start.** Claude Code ships an *auto memory* that already does
-> part of this: it writes its own typed notes into a per-project memory directory and
-> keeps a `MEMORY.md` index that loads at the start of every session. If all they want
-> is "remember my corrections", that is built already and they should just turn it on.
+> **Say this before you start, and be straight about it.** Claude Code already ships an
+> *auto memory*: it writes its own typed notes into `~/.claude/projects/<project>/memory/`
+> and keeps a `MEMORY.md` index that loads at the start of every session (the first
+> 200 lines or 25KB — past that is silently dropped). **It is on by default.** Have them
+> run `/memory` and actually look at what it has been saving. If all they want is
+> "remember my corrections", they already have it.
 >
-> This track is still worth doing, for two reasons. The built-in memory is **per
-> repository and machine-local**; a second brain is one body of knowledge that follows
-> them across every project and syncs in git. And building the index by hand is what
-> teaches them *why* retrieval works — which is what lets them fix the built-in one on
-> the day it starts pulling the wrong note.
+> Two honest reasons to build one anyway:
 >
-> Teaching someone to hand-build a thing their tool already does, without mentioning
-> that it already does it, is how a guide loses their trust.
+> - **It covers a category the built-in refuses.** Auto memory deliberately skips
+>   anything derivable from the codebase, *including debugging fixes*. The gotcha that
+>   cost you an afternoon is exactly what it will not keep. That is the strongest
+>   argument here.
+> - **Defaults and portability.** The built-in is per repository and machine-local. You
+>   can move it — `autoMemoryDirectory` relocates the store, and
+>   `CLAUDE_CODE_PROJECT_DIR_NAME` can make projects share one — but out of the box it
+>   does not follow you across projects or sync in git, and a brain does.
+>
+> And building the index yourself teaches you why retrieval works, which is what lets
+> you fix the built-in one on the day it starts pulling the wrong note.
 
 ## What they must understand by the end
 
@@ -74,11 +81,14 @@ says no. The hit rate is the number to re-check, not the outages.
 Related: [[pipeline-architecture]]
 ```
 
-Four types is enough: `decision`, `preference`, `reference`, `gotcha`.
+Four types is enough: `decision`, `preference`, `reference`, `gotcha`. **These are
+yours, not Claude Code's** — auto memory uses `user`, `feedback`, `project` and
+`reference`, and its `reference` means something narrower (where to find an external
+dashboard or tracker). Do not assume they interoperate.
 
 **CHECK:** the `description` must be good enough to decide *relevance* on its own,
-because that is all the agent reads when scanning. "Redis notes" fails. The one
-above passes.
+because when the agent is choosing what to open it is going on the index line and this
+summary, not on the body. "Redis notes" fails. The one above passes.
 
 Have them write their three from Beat 1 in this shape.
 
@@ -97,9 +107,18 @@ content, never a second copy.
 - [Windows path gotcha in ffmpeg](ffmpeg-windows-paths.md) — backslashes break the filter graph
 ```
 
-The agent loads the index every session — cheap, it is one line each — and opens
-only the notes that turn out to matter. That is the whole retrieval mechanism, and
-it works because the hooks are written to be *scannable*, not complete.
+You want the index in context every session — cheap, one line each — so the agent can
+open only the notes that matter. **Nothing loads `~/brain/MEMORY.md` on its own**, so
+make it load: put an `@` import in `~/.claude/CLAUDE.md`, which is expanded into
+context at launch.
+
+```markdown
+@~/brain/MEMORY.md
+```
+
+The alternative — a prose instruction saying "go read the index" — relies on the agent
+choosing to make that Read call, and that is exactly the "Did not look" failure in
+Beat 5. An import removes the choice.
 
 **CHECK:** the index line must make sense to someone who has not read the note. If
 the hook is just the title again, it is not earning its place.
@@ -123,6 +142,13 @@ instead of duplicating. Never record what the code or git history already says.
 ```
 
 Then have them work normally for a bit and watch whether notes appear.
+
+**TRAP:** auto memory is running at the same time, with an overlapping mandate — the
+agent will write to both stores and the learner will see notes appear in
+`~/.claude/projects/<project>/memory/` that they did not build. Either turn it off for
+this exercise (`autoMemoryEnabled: false`) or tell them to expect the split. And note
+that a `CLAUDE.md` instruction is context, not enforcement: it asks, it does not
+compel.
 
 **TRAP:** it will over-record at first — every trivial thing becomes a note. That is
 fine and it is fixable: tighten the trigger ("cost more than ten minutes"), and
@@ -184,8 +210,12 @@ that always finds something is a brain that cannot be trusted.
   with any agent, syncs in git, and is readable when the tool changes.
 
 **Predict-then-run:** have them delete `MEMORY.md` (keeping the notes), predict what
-retrieval does, then test. Most people are surprised by how completely it breaks —
-which is the lesson: **the index is the brain, the notes are just storage.**
+retrieval does, then test. It does **not** collapse — the folder is still named in
+their memory file and the agent has Glob and Grep, so it will often still find the
+right note by filename or full-text match. What degrades is precision and speed: it
+misses notes whose filenames do not echo the question, and it reads more to get there.
+That is the lesson — **the index is not storage, it is the precision layer**, and you
+feel its absence as noise rather than as failure.
 
 ---
 

@@ -12,11 +12,16 @@ real workflows the same way every time.
 **A prompt runs once. A skill runs the same way forever.**
 
 A skill is a folder with a markdown file in it. The frontmatter says *when* to use
-it; the body says *how*. The agent loads the body only when the situation matches,
-so a skill costs nothing until it is needed.
+it; the body says *how*. The agent loads the **body** only when the situation matches.
 
-That last part is why skills beat stuffing everything into a memory file: memory is
-read every session and competes for context, a skill is read only when relevant.
+Be precise about the cost, because "free until used" is not true: every installed
+skill's **description** sits in context every session, and once a skill fires its body
+**stays** in context for the rest of the session. So a skill costs a line always, and
+its full length from first trigger onward.
+
+That still beats stuffing a long workflow into a memory file, which costs its full
+length every session whether you need it or not — but it is a smaller win than it
+sounds, and it is why a skill's body should be short too.
 
 ---
 
@@ -42,7 +47,13 @@ track is the wrong one today — send them to track 2.
 ```
 
 `~/.claude/skills/` for every project, `.claude/skills/` inside a repo for just that
-one. **Codex** uses `~/.codex/skills/` with the same shape.
+one. **Codex** looks in `~/.agents/skills/` and `.agents/skills/` — same idea, and it
+adds `references/` and `assets/`; it also *requires* `name` and `description` where
+Claude Code treats both as optional.
+
+**`name:` does not name the command.** For personal and project skills the invocation
+name comes from the **directory**; `name:` is only the display label. Rename one
+without the other and you will confuse yourself.
 
 ```markdown
 ---
@@ -80,9 +91,21 @@ Rules:
 This is the part that decides whether a skill ever fires, and it is where every
 first skill goes wrong.
 
-The agent reads only `name` and `description` when deciding. So the description must
-say **when to use it**, in the words the person would actually use — including the
-cases where it should *not* fire.
+The agent decides mostly on `description`, so it must say **when to use it**, in the
+words the person would actually use — including the cases where it should *not* fire.
+
+Three related fields worth knowing:
+
+- **`when_to_use`** — appended to the description in the listing. Purpose-built for
+  exactly the trigger phrases you are about to write.
+- **`paths`** — glob patterns that gate automatic activation to matching files. A
+  cleaner fix than keyword-stuffing when a skill is only for one file type.
+- **`disable-model-invocation: true`** — the deliberate "never fire on its own" switch.
+
+**There is a hard cap:** `description` and `when_to_use` together are truncated at
+**1,536 characters** in the listing. And the whole listing has a budget of about 1% of
+the context window — past that, descriptions get dropped, least-used first. If a skill
+that used to fire stops firing, that is a prime suspect, and `/doctor` will tell you.
 
 | | |
 |---|---|
@@ -116,8 +139,14 @@ Have them write theirs now, in one pass, then cut it by a third.
 
 ## Beat 5 — install and fire it
 
-Put the folder in `~/.claude/skills/<name>/`. Claude Code watches that directory
-and picks the skill up **in the current session, no restart needed**.
+Put the folder in `~/.claude/skills/<name>/`. Claude Code watches that directory and
+picks the skill up **in the current session, no restart needed**.
+
+**TRAP — and this one hits first-timers specifically.** If `~/.claude/skills/` did not
+exist when the session started, Claude Code is not watching it yet and you **do** need
+a restart. That is the most likely state for someone writing their first skill, and it
+presents exactly like the failure below — so restart once before you go blaming the
+description.
 
 Then have them trigger it *without naming it*, using one of their three natural
 phrasings from Beat 3.

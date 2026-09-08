@@ -36,7 +36,8 @@ cp -r coding-agents-guide/skills/coding-agents-tutor ~/.claude/skills/
 **Codex**
 
 ```bash
-cp -r coding-agents-guide/skills/coding-agents-tutor ~/.codex/skills/
+mkdir -p ~/.agents/skills
+cp -r coding-agents-guide/skills/coding-agents-tutor ~/.agents/skills/
 ```
 
 On Windows, copy the folder `skills\coding-agents-tutor` into `%USERPROFILE%\.claude\skills\`.

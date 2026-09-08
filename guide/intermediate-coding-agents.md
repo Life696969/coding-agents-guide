@@ -49,8 +49,13 @@ good.** Prompting runs once. A file runs forever.
 
 ## The empty head
 
-A subagent does not inherit your conversation. It gets the prompt you hand it and
-whatever it reads off the disk. Nothing else.
+A subagent does not inherit your conversation. It gets the task message Claude
+composes for it, your `CLAUDE.md` hierarchy, a git status snapshot, any preloaded
+skills — and whatever else it reads off the disk. Not your chat.
+
+Two exceptions worth carrying: a **fork** inherits the whole conversation, and it is
+the default in a current interactive session; and the built-in **Explore and Plan**
+agents skip `CLAUDE.md` and git status entirely, with no setting to change it.
 
 People meet this as a bug. They fan out five agents, the answers come back
 inconsistent, and they conclude parallel agents are not ready. The agents were
@@ -102,8 +107,10 @@ Report each as: file, line, what it claims, what it actually checks.
 Report nothing else. Do not fix anything.
 ```
 
-**Codex** uses `AGENTS.md` conventions and `~/.codex/skills/`. The keys differ, the
-discipline does not.
+**Codex** does the same job with a different shape: subagents are **TOML** files in
+`.codex/agents/` or `~/.codex/agents/`, keyed on `name`, `description` and
+`developer_instructions`. Not markdown, not frontmatter. The discipline transfers; the
+file does not.
 
 Two things make this file good and both are easy to skip. The `description` says
 *when* to use it, not just what it is — that is what the parent agent reads when
@@ -142,8 +149,8 @@ Fan out across *questions*, not across *files*.
 
 Those three agents did not know your project's conventions. You could paste them
 into all three prompts. Or you could put them in a file every agent can read —
-`CLAUDE.md` for Claude Code, `AGENTS.md` for Codex and around thirty other tools —
-and brief all of them for free.
+`CLAUDE.md` for Claude Code, `AGENTS.md` for Codex and twenty-odd other tools — and
+brief all of them for free.
 
 This is the hinge between Part 1 and Part 2, and if you take one line from this
 guide, take this one:
@@ -424,18 +431,26 @@ Two mechanisms turn the above from "things you know" into "things that happen".
 ## Skills — for what you repeat
 
 A skill is a folder with a `SKILL.md` in it. The frontmatter says when to use it;
-the body says how. The agent loads the body **only when the situation matches**, so
-a skill costs nothing until it is needed — which is exactly why a long workflow
-belongs in a skill rather than in your memory file.
+the body says how. The agent loads the **body** only when the situation matches.
+
+It is not free until used, though: every installed skill's description sits in context
+every session, and once a skill fires its body stays there for the rest of the session.
+A skill costs a line always and its full length from first trigger onward — which still
+beats a long workflow in your memory file, where you pay the full length every session
+whether you need it or not.
 
 ```
 ~/.claude/skills/<name>/SKILL.md      (Claude Code, all projects)
 .claude/skills/<name>/SKILL.md        (one project)
-~/.codex/skills/<name>/               (Codex)
+~/.agents/skills/<name>/              (Codex)
 ```
 
 Claude Code watches those directories, so a new skill is picked up in the current
-session without a restart.
+session without a restart — **unless the skills directory did not exist when the
+session started**, which is exactly the first-timer case. Restart once, then trust it.
+
+A skill is not free until used, either: its description sits in context every session,
+and its body stays in context once triggered. Keep both short.
 
 The `description` is the entire trigger. If a skill never fires on its own, the
 description is the thing to fix, and the test is simple: **if you only read that

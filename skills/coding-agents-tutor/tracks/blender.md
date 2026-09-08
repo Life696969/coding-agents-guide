@@ -41,11 +41,14 @@ blender --background --python hello.py
 ```
 
 **CHECK:** they should see their print line in the terminal. If Blender opens a
-window, `--background` is missing or in the wrong position — it goes before
-`--python`.
+window, `--background` is missing entirely — its position on the command line does not
+matter, because Blender parses arguments in passes and handles `--background` in an
+earlier pass than `--python` regardless of order.
 
-**TRAP:** `--background` must come first. `blender --python x.py --background` opens
-the GUI.
+**TRAP:** order *does* matter, just not for that. `blender --background --python x.py
+scene.blend` loads the .blend **after** the script runs, wiping everything the script
+built — the `.blend` goes first: `blender --background scene.blend --python x.py`.
+Short flags also cannot be combined: `blender -ba file.blend` errors out.
 
 ---
 
@@ -157,21 +160,30 @@ Cycles is a path tracer and cost scales with samples and resolution.
 Have them time it:
 
 ```bash
-# 64 samples
+# 64 samples — bash / macOS / Linux
 time blender --background --python scene.py
 ```
 
-Then 512 samples. It will be roughly eight times slower.
+```powershell
+# PowerShell, since this track targets Windows
+Measure-Command { blender --background --python scene.py }
+```
+
+Then 512 samples. It will be slower — but nowhere near eight times. Cycles has
+**adaptive sampling on by default**, so `samples` is a *ceiling*, not a count: easy
+pixels converge and stop early, and on a simple scene the real ratio is closer to two
+or three. Measuring it for their own scene is the point; guessing it is the habit this
+beat exists to break.
 
 **The working rule:** iterate at 32–64 samples and small resolution, raise it only
 for the final. An agent left to its own devices will happily queue a 1024-sample 4K
 render for a composition test and burn twenty minutes proving the light is in the
 wrong place.
 
-**TRAP:** `EEVEE` renders in a fraction of the time and is right for previews, but it
-handles glass, caustics and indirect light differently — so a preview can look wrong
-in ways the final will not, and vice versa. Use it to check *composition*, not
-lighting.
+**TRAP:** EEVEE (the engine string is `"BLENDER_EEVEE"`, not `"EEVEE"`) renders in a
+fraction of the time and is right for previews, but it is a rasteriser: it handles
+glass, caustics and indirect light differently, so a preview can look wrong in ways the
+final will not, and vice versa. Use it to check *composition*, not lighting.
 
 ---
 

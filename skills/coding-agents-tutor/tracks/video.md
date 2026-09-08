@@ -27,9 +27,14 @@ The workflow that works is always: **measure → decide → render → verify.**
 Have them run this on their own clip:
 
 ```bash
-ffprobe -v error -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
+ffprobe -v error -select_streams v:0 \
+  -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
   -show_entries format=duration -of default=nw=1 input.mp4
 ```
+
+`-select_streams v:0` matters: without it you also get the audio stream's
+`nb_frames` and an `r_frame_rate` of `0/0`, which is exactly the confusion this step
+is meant to remove.
 
 Have them read it out: dimensions, frame rate, duration.
 
@@ -58,8 +63,12 @@ ffmpeg -hide_banner -i input.mp4 -af "silencedetect=noise=-35dB:d=0.25" -f null 
   | grep silence_
 ```
 
-That prints every silence boundary. The first `silence_end` is roughly where speech
-begins.
+That prints every silence boundary. **If the clip opens with silence**, the first
+`silence_end` is roughly where speech begins.
+
+**TRAP:** if the clip starts mid-word, the first `silence_end` is the end of a silence
+*in the middle*, and taking it as the start of speech will cut the opening off. Check
+whether there is a `silence_start: 0` first — if there is not, speech begins at 0.
 
 Have them compare it to where they *thought* it started. It is usually 0.3–0.8s off,
 and that gap is exactly the dead air that makes an edit feel slow.
@@ -86,13 +95,24 @@ ffprobe -v error -select_streams v:0 -count_frames \
   -show_entries stream=nb_read_frames -of csv=p=0 out.mp4
 ```
 
-**TRAP:** a duration that is not a whole number of frames gives a partial frame at
-the end, which shows up as a stutter when clips are joined. At 30fps, pick durations
-that are multiples of 1/30. If it might also be played at 60, use multiples of 1/30
-and the count works at both. `6.40 x 30 = 192` — whole. `6.35 x 30 = 190.5` — not.
+**TRAP:** a duration that is not a whole number of frames does **not** give you a
+partial frame — there is no such thing in an H.264 stream. What happens is quieter and
+worse: ffmpeg rounds **up** to the next whole frame and hands you a duration you did
+not ask for. `-t 6.35` at 30fps gives **191 frames and 6.366667s**, not 190.5 and not
+6.35. The frame count looks perfectly fine.
 
-Have them deliberately try a bad duration and look at the frame count. Feeling this
-once is worth more than being told.
+At 30fps, pick durations that are multiples of 1/30 and the count works at 30 and 60
+both. `6.40 x 30 = 192` — whole. `6.35 x 30 = 190.5` — not.
+
+Have them run `-t 6.35` and compare **requested duration against actual stream
+duration**, not the frame count:
+
+```bash
+ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 out.mp4
+```
+
+Asking for 6.35 and being given 6.366667 is the thing to feel. Ten of those in a
+sequence is a third of a second of drift you never authorised.
 
 ---
 
@@ -115,8 +135,15 @@ x=(w-text_w)/2:y=h*0.72" \
 ```
 
 **TRAP — Windows paths in filter graphs:** the filter syntax uses `:` as a separator,
-so `C:/Windows/...` breaks it. Escape the drive colon as `C\:/Windows/...` exactly as
-above. This costs people an hour.
+so `C:/Windows/...` breaks it. You need **both** the surrounding single quotes **and**
+the escaped colon — `fontfile='C\:/Windows/Fonts/arialbd.ttf'`. Either one alone
+fails with `No option name near '/Windows/...'`. Simplest alternative that also works:
+drop the drive letter entirely, `fontfile='/Windows/Fonts/arialbd.ttf'`.
+
+**And do not reach for the two obvious workarounds.** `font=Arial` (by name) and
+backslash separators (`'C\:\Windows\Fonts\arialbd.ttf'`) both *segfault* ffmpeg on
+Windows rather than erroring cleanly, so a learner debugging a font path can land on a
+hard crash with no message.
 
 **CHECK:** have them pause on a frame, and check the picture *outside* the text is
 as bright as the source. If the whole lower third got darker, they used a box; go
@@ -133,7 +160,7 @@ Have them add a verification step and treat it as part of the edit, not an extra
 ffprobe -v error -select_streams v:0 -count_frames \
   -show_entries stream=nb_read_frames -of csv=p=0 captioned.mp4
 
-# audio has not drifted from the picture
+# audio has not drifted from the picture (prints video then audio duration)
 ffprobe -v error -show_entries stream=duration -of csv=p=0 captioned.mp4
 
 # loudness is sane for social (-14 LUFS is the usual target)
@@ -141,9 +168,19 @@ ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null -
   | grep -E "Input (Integrated|True Peak)"
 ```
 
+**These three use `grep`, which PowerShell does not have** — and this track's signature
+trap is a Windows font path, so say which shell you are in. Git Bash or WSL runs them
+as written. In PowerShell:
+
+```powershell
+ffmpeg -hide_banner -i captioned.mp4 -af loudnorm=print_format=summary -f null - 2>&1 |
+  Select-String "Input Integrated|Input True Peak" | ForEach-Object { $_.Line }
+```
+
 **This is the beat that separates people who ship from people who re-render all
-night.** An agent will happily report success on a file with 190 frames when you
-asked for 192. Only a check catches it.
+night.** An agent will happily report success on a file that is 6.366667s when you
+asked for 6.35 — the frame count looks whole, nothing errors, and the drift only
+shows up once the clips are lined up. Only a check catches it.
 
 ---
 

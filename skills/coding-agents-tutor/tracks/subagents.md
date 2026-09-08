@@ -12,8 +12,17 @@ own repo and writes one report.
 One sentence: **a subagent starts with an empty head.**
 
 It does not get your conversation. It does not know what you agreed three messages
-ago. It gets exactly two things: the prompt you hand it, and whatever it can read
-off the disk.
+ago. What it *does* get is: the task message Claude composes for it, your `CLAUDE.md`
+hierarchy, a git status snapshot, any skills preloaded in its definition, and
+whatever else it reads off the disk itself.
+
+Two caveats that matter more than they look, and that most write-ups skip:
+
+- **A *fork* is the exception.** A fork inherits the whole conversation, and in a
+  current interactive Claude Code session fork mode is on by default. So "spawn a
+  subagent" may well give you something that *does* know what you were just doing.
+- **The built-in Explore and Plan agents skip `CLAUDE.md` and git status entirely**,
+  and there is no setting to change that.
 
 Everything else in this track follows from that. Parallel agents are not "the same
 agent, times ten" — they are ten strangers who all have to be briefed in writing.
@@ -26,11 +35,18 @@ the mess instead of ten times the work.
 
 Before any theory. Have them run this in a project they know:
 
-> Ask your agent to spawn a subagent with this exact prompt:
-> *"What are we working on? Answer only from what you already know."*
+> Ask your agent to delegate to a **named custom subagent** (not a fork) with a task
+> like: *"State what we are working on, using only what you already have."*
 
-The subagent will not know. It will say so, or it will go and read files to find
-out.
+It will not know the conversation. It may still describe the project accurately —
+from `CLAUDE.md` and the git snapshot it was given — and that is the real lesson:
+**what a subagent knows is what was put in front of it, not what you said.**
+
+**TRAP — check this before running it.** If they just say "spawn a subagent", a
+current interactive session is likely to give them a *fork*, which inherits the
+entire conversation and will answer the question perfectly. That looks like the
+demo failing when it is actually a different feature. Make sure they delegate to a
+named agent.
 
 **Then ask them:** why is that a feature and not a bug?
 
@@ -69,8 +85,10 @@ Report each as: file, line, what it claims, what it actually checks.
 Report nothing else. Do not fix anything.
 ```
 
-**Codex** — same idea, `AGENTS.md` conventions and `~/.codex/skills/`. The frontmatter
-keys differ; the discipline does not.
+**Codex** — same idea, different shape entirely: subagents are **TOML** files in
+`.codex/agents/` or `~/.codex/agents/`, with `name`, `description` and
+`developer_instructions`. Not markdown, not frontmatter. The discipline transfers;
+the file does not.
 
 Have them write one for something they actually care about in their repo.
 
@@ -111,9 +129,11 @@ Have them ask their agent for something shaped like:
 > Each returns at most 5 findings as `file:line — what — why it matters`.
 > Then merge into one list, most severe first.
 
-**CHECK:** did they actually run concurrently, or one after another? In Claude Code,
-launching them in a single message runs them in parallel; one per message runs them
-in sequence. Have them notice the difference — it is the whole point.
+**CHECK:** ask for all three in **one request**. You do not get a switch for this —
+Claude decides how to batch the delegation, and in a current session subagents run in
+the background anyway, so asking across three separate turns does not reliably
+serialise them either. What one request buys you is that Claude plans the three
+briefs together, which is what makes them comparable.
 
 **CHECK:** are the three outputs in the *same format*? If not, the merge is manual
 work and the fan-out saved them nothing. Fix by putting the output shape in each
@@ -128,15 +148,23 @@ Now connect it back.
 Ask them: *those three agents did not know your project conventions. How would you
 tell all three at once, without pasting it into three prompts?*
 
-The answer is a file the agents read: `CLAUDE.md` (Claude Code) or `AGENTS.md`
-(Codex and ~30 other tools) at the repo root. Every subagent can read the disk, so
-the file briefs all of them for free.
+The answer is a file: `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex and 20+ other
+tools) at the repo root. Claude Code **injects** your CLAUDE.md hierarchy into each
+subagent's starting context — they do not have to go and find it — so one file
+briefs all of them for free.
+
+**TRAP — the big exception.** The built-in **Explore and Plan** agents are the two
+that skip `CLAUDE.md` and git status, and a "review this repo" fan-out may well route
+to Explore. There is no setting to change it. When a rule *must* reach the subagent,
+restate it in the delegation prompt as well as the file.
 
 Have them add three real conventions to that file — not generic ones, three things
 that are actually true about their repo. Then re-run Beat 4 and compare.
 
-**CHECK:** the second run should reference their conventions. If it does not, the
-file is too long or too vague. Cut it in half and run again.
+**CHECK:** the second run should reference their conventions. If it does not, check
+in this order: was it an Explore/Plan agent (which never got the file), then is the
+file too long, then is it too vague. Getting that order wrong sends people off
+shortening a file that was never loaded.
 
 > This is the hinge of the whole track. If they only remember one thing: **you scale
 > agents by improving the files they read, not by writing longer prompts.**
@@ -169,10 +197,10 @@ brief for that dimension is wrong — fix that prompt, not the merge.
 
 Once six works, the honest picture:
 
-- **There is a hard ceiling at 20.** With twenty subagents already running, spawning
-  another fails outright. `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` raises it, but twenty
-  concurrent is the default wall — so design a big fan-out in waves rather than
-  assuming unlimited width.
+- **There is a configurable ceiling, 20 by default.** With twenty already running,
+  the next spawn fails outright with a no-retry error rather than queueing.
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` moves it up or down. Design a big fan-out in
+  waves rather than assuming unlimited width.
 - **Going wider is cheap; going deeper is not.** Twenty agents each reading three
   files is fine. Twenty agents each reading the whole repo will be slow and
   expensive, and most of them will return the same finding.
